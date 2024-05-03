@@ -1,10 +1,39 @@
 import os
 import numpy as np
+import pandas as pd
 import csv
 
 import torch
 from tqdm import tqdm
 import config
+
+
+def get_symbol_size(csv_file: str, label_dir: str, image_size: int) -> int:
+    """
+    Read all symbol size from csv and label files, compute the average size.
+
+    Parameters:
+        csv_file (str): path to csv file
+        label_dir (str): path to labels folder
+        image_size (int): image size
+
+    Return:
+        required average symbol size (int)
+    """
+    file_names = pd.read_csv(csv_file)["text"]
+    symbol_sizes = []
+    for file in tqdm(file_names[:10]):
+        if os.path.exists(os.path.join(label_dir, file)):
+            with open(os.path.join(label_dir, file), "r") as f:
+                for label in f.readlines():
+                    class_label, x, y, width, height = [
+                        float(x) if float(x) != int(float(x)) else int(x)
+                        for x in label.replace("\n", "").split()
+                    ]
+                    symbol_sizes.append(width * image_size) if width == height else None
+    assert len(symbol_sizes) != 0, "no bounding box detected."
+
+    return int(np.ceil(sum(symbol_sizes) / len(symbol_sizes)))
 
 def get_paddings_size(model_config: list) -> int:
     """
@@ -18,6 +47,8 @@ def get_paddings_size(model_config: list) -> int:
                 [-1, 1, 'MaxPool', [2, 2, 0]],
                 ...
             ]
+    Return:
+        required padding size (int)
     """
     max_pool_num = 0
     network_arc = {
@@ -80,7 +111,11 @@ def load_checkpoint(checkpoint_file, model, optimizer, lr):
     for param_group in optimizer.param_groups:
         param_group["lr"] = lr
 
+def get_dataloaders():
+    pass
 
 if __name__ == '__main__':
     # assert get_paddings_size(model_configs['origin_config']) == 33, "error in origin config"
-    pass
+    symbol_size = get_symbol_size("../test/train.csv", "../test/train/labels/", 256)
+    print(symbol_size)
+    print(256 * 0.062)

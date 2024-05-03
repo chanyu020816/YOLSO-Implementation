@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from config import model_configs
+import config
 
 
 class ConvBlock(nn.Module):
@@ -95,6 +95,6 @@ class YOLSO(nn.Module):
 
 if __name__ == '__main__':
     image = torch.randn(10, 3, 480, 480)
-    model = YOLSO(model_configs['origin_config'], 3, 8)
+    model = YOLSO(config.model_configs['origin_config'], 3, 8)
     output = model(image)
     print(output.shape)
