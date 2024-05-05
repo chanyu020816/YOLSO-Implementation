@@ -70,14 +70,14 @@ def predict_image(img_path, confidence_threshold = 0.01, split_size = 480, image
 
                 total_annotations.append([class_id, x, y, w, h])
 
-        cv2.imwrite(f'{image_folder}/{image_name}_h{position[0]}_w{position[1]}.jpg', image)
-        with open(f'{label_folder}/{image_name}_h{position[0]}_w{position[1]}.txt', 'w') as file:
+        cv2.imwrite(os.path.join(image_folder, f'{image_name}_h{position[0]}_w{position[1]}.jpg'), image)
+        with open(os.path.join(label_folder, f'{image_name}_h{position[0]}_w{position[1]}.txt' ), 'w') as file:
             for anno in image_annotations:
                 class_id, x, y, w, h = anno
                 file.write(f'{class_id} {x} {y} {w} {h}\n')
 
-    cv2.imwrite(f'{image_folder}/{image_name}_pred.jpg', ori_image)
-    output_path = f'{label_folder}/{image_name}_pred.txt'
+    cv2.imwrite(os.path.join(image_folder, f'{image_name}_pred.jpg'), ori_image)
+    output_path = os.path.join(label_folder, f'{image_name}_pred.txt')
     with open(output_path, 'w') as file:
         for anno in total_annotations:
             class_id, x, y, w, h = anno
@@ -93,7 +93,7 @@ if __name__ == '__main__':
     parser.add_argument('--label_folder', type=str, default='./', help='path to save label')
 
     args = parser.parse_args()
-    assert args.img_path.exists(), "image path does not exist"
+    # assert args.img_path.exists(), "image path does not exist"
 
     model = YOLO(args.model)
     predict_image(
