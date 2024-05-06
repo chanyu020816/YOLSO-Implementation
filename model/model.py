@@ -52,11 +52,12 @@ class ScalePrediction(nn.Module):
             .permute(0, 1, 3, 4, 5)
         )
 
-class YOLSO(nn.Module):
-    def __init__(self, model_config: list, in_channels: int, num_classes: int, *args, **kwargs) -> None:
+class YOLSOV1(nn.Module):
+    def __init__(self, model_config: list, in_channels: int, split_size: int,  num_classes: int, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.config = model_config
         self.in_channels = in_channels
+        self.split_size = split_size
         self.num_classes = num_classes
         self.model = self._parse_model()
 
@@ -89,12 +90,19 @@ class YOLSO(nn.Module):
                 pass
             elif module_type == 'MaxPool':
                 layers.append(nn.MaxPool2d(kernel_size=2, stride=2))
-            elif module_type == 'ScalePrediction':
-                pass
+            elif module_type == 'Prediction':
+                layers.extend([
+                    nn.Flatten(),
+                    nn.Linear(in_channels * self.split_size * self.split_size, 4096),
+                    nn.Dropout(0.0),
+                    nn.LeakyReLU(0.1),
+                    nn.Linear(4096, self.split_size * self.split_size * (self.num_classes + 3)),
+                ])
         return layers
+
 
 if __name__ == '__main__':
     image = torch.randn(10, 3, 480, 480)
-    model = YOLSO(config.model_configs['origin_config'], 3, 8)
+    model = YOLSOV1(config.model_configs['origin_config'], 3, 25, 8)
     output = model(image)
     print(output.shape)

@@ -12,11 +12,11 @@ def split_data(data_folder: str, train_size: float, val_size: float, test_size: 
     :param val_size: size of validation set (in percent or number of data)
     :param test_size: size of test set (in percent or number of data)
     """
-    assert os.path.exists(data_folder)
+    assert os.path.exists(data_folder), "Data folder doesn't exist"
     image_folder = os.path.join(data_folder, 'images')
     label_folder = os.path.join(data_folder, 'labels')
-    assert os.path.exists(image_folder)
-    assert os.path.exists(label_folder)
+    assert os.path.exists(image_folder), "Image folder does not exist"
+    assert os.path.exists(label_folder), "Label folder does not exist"
 
     train_size = int(train_size * len(image_folder)) if type(train_size) == float else train_size
     val_size = int(val_size * len(image_folder)) if type(val_size) == float else val_size

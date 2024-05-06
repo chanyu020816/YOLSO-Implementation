@@ -13,6 +13,18 @@ class YOLSODataset(Dataset):
             image_size: int, symbol_size: int, padding_size:int,
             num_classes: int, transform=None
     ):
+        """
+
+        :param csv_file:
+        :param img_dir:
+        :param label_dir:
+        :param image_size:
+        :param symbol_size:
+        :param padding_size:
+        :param num_classes:
+        :param transform:
+
+        """
         self.annotations = read_csv(csv_file)
         self.img_dir = img_dir
         self.label_dir = label_dir
@@ -57,18 +69,38 @@ class YOLSODataset(Dataset):
 
             x, y, width, height = np.dot([x_norm, y_norm, width_norm, height_norm], self.image_size)
 
+            # remove boundary annotations
             if x-width < exc_left or x+width > exc_right or y-height < exc_top or y+height > exc_bottom:
                 continue
             class_label = int(class_label)
+            cell_size = self.symbol_size
+            # i, j represents the cell row and cell column
+            grid_norm = self.padding_size / self.image_size
 
-            i, j = int(self.output_grid_size * x_norm), int(self.output_grid_size* y_norm)
+            i, j = (
+                int(self.output_grid_size*(y-self.padding_size)/self.image_size),
+                int(self.output_grid_size * (x - self.padding_size) / self.image_size),
+                )
+            x_cell, y_cell = (
+                self.output_grid_size*(x-self.padding_size)/self.image_size - j,
+                self.output_grid_size*(y-self.padding_size)/self.image_size - i
+            )
 
+            # if no object already found in cell i, j, set to 1
+            if target[i, j, self.num_classes] == 0:
+                target[i, j, self.num_classes] = 1
 
+                box_coord = torch.tensor(
+                    [x_cell, y_cell]
+                )
+                target[i, j, (self.num_classes + 1):(self.num_classes+3)] = box_coord
+                target[i, j, class_label] = 1
+                # e.g. target[i, j, ] = [0, 0, ..., 1, 0, ..., 1, 0.3, 0.7]
         return image, target
 
     def _get_output_grid_size(self) -> int:
         """
-        :return: the output grid width and height
+        :return: number of output grid width and height
         """
         return int((self.image_size - 2 * self.padding_size) / self.symbol_size)
 
@@ -84,9 +116,7 @@ class YOLSODataset(Dataset):
         return top, bot, left, right
 
     def test(self):
-        print(self._get_exclude_position())
-        print(len(self.annotations))
-        self.__getitem__(0)
+        img, lab = self.__getitem__(0)
 
 if __name__ == '__main__':
     datasett = YOLSODataset("../test/train.csv", "../test/train/images", "../test/train/labels", 480, 16, 30, 30)

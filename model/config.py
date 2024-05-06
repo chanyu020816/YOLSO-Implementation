@@ -47,7 +47,8 @@ origin_config = [
     [-1, 1, 'Conv', [256, 3, 1, 0]],
     [-1, 1, 'MaxPool', [2, 2, 0]],
     [-1, 1, 'Conv', [512, 3, 1, 0]],
-    [-1, 1, 'Conv', [(NUM_CLASSES + 3), 1, 1, 0]],
+    # [-1, 1, 'Conv', [(NUM_CLASSES + 3), 1, 1, 0]],
+    [-1, 1, 'Prediction']
 ]
 
 thin_config = [
