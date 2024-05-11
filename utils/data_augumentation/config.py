@@ -1,11 +1,11 @@
 import os
 import albumentations as A
 
-IMAGE_PATH = '../../test/test_data/test/images/'
-LABELS_PATH = '../../test/test_data/test/labels'
-OUTPUT_PATH = '../../test/test_data/test/aug'
+IMAGE_PATH = os.path.join("..", "..", "data", "train", "images")
+LABELS_PATH = os.path.join("..", "..", "data", "train", "labels")
+OUTPUT_PATH = os.path.join("..", "..", "data", "aug_train")
 AUG_NAME_PREFIX = 'aug'
-AUG_SIZE = 20
+AUG_SIZE = 15
 TRANSFORMS = A.Compose([
     # A.RandomCrop(width=550, height=550),
     A.HorizontalFlip(p=0.5),

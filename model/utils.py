@@ -4,9 +4,159 @@ import pandas as pd
 import csv
 
 import torch
+from torch.utils.data import DataLoader
+from collections import Counter
 from tqdm import tqdm
-import config
+from model.yolso_dataset import *
+import model.config as cfg
 
+def intersection_over_union(boxes1: list, boxes2: list, box_format: str = "center"):
+    """
+    Calculate intersection over union score
+
+    Parameters:
+        boxes1: boxes1
+        boxes2: boxes2
+        box_format: center (x, y, w, h) or corners (x1, y1, x2, y2)
+    Return:
+        IOU score
+    """
+
+    if box_format == "center":
+        box1_x1 = boxes1[..., 0:1] - boxes1[..., 2:3] / 2
+        box1_y1 = boxes1[..., 1:2] - boxes1[..., 3:4] / 2
+        box1_x2 = boxes1[..., 0:1] + boxes1[..., 2:3] / 2
+        box1_y2 = boxes1[..., 1:2] + boxes1[..., 3:4] / 2
+        box2_x1 = boxes2[..., 0:1] - boxes2[..., 2:3] / 2
+        box2_y1 = boxes2[..., 1:2] - boxes2[..., 3:4] / 2
+        box2_x2 = boxes2[..., 0:1] + boxes2[..., 2:3] / 2
+        box2_y2 = boxes2[..., 1:2] + boxes2[..., 3:4] / 2
+    elif box_format == "corners":
+        box1_x1 = boxes1[..., 0:1]
+        box1_y1 = boxes1[..., 1:2]
+        box1_x2 = boxes1[..., 2:3]
+        box1_y2 = boxes1[..., 3:4]  # (N, 1)
+        box2_x1 = boxes2[..., 0:1]
+        box2_y1 = boxes2[..., 1:2]
+        box2_x2 = boxes2[..., 2:3]
+        box2_y2 = boxes2[..., 3:4]
+
+    x1 = torch.max(box1_x1, box2_x1)
+    y1 = torch.max(box1_y1, box2_y1)
+    x2 = torch.min(box1_x2, box2_x2)
+    y2 = torch.min(box1_y2, box2_y2)
+
+    intersection = (x2 - x1).clamp(0) * (y2 - y1).clamp(0)
+    box1_area = abs((box1_x2 - box1_x1) * (box1_y2 - box1_y1))
+    box2_area = abs((box2_x2 - box2_x1) * (box2_y2 - box2_y1))
+
+    return intersection / (box1_area + box2_area - intersection + 1e-6)
+
+def non_max_suppression(bboxes, iou_threshold, conf_threshold, box_format="center") -> list:
+    bboxes = [box for box in bboxes if box[1] > conf_threshold]
+    bboxes = sorted(bboxes, key=lambda x: x[1], reverse=True)
+    bboxes_after_nms = []
+
+    while bboxes:
+        chosen_box = bboxes.pop(0)
+
+        bboxes = [
+            box
+            for box in bboxes
+            if box[0] != chosen_box[0] or
+            intersection_over_union(
+                torch.tensor(chosen_box[2:]),
+                torch.tensor(box[2:]),
+                box_format=box_format,
+            )
+            < iou_threshold
+        ]
+
+        bboxes_after_nms.append(chosen_box)
+
+    return bboxes_after_nms
+
+def mean_average_precision(
+    pred_bboxes: list, true_bboxes: list, iou_threshold: float = 0.5, num_classes: int = 20, box_format="center"
+    ):
+    """
+    Calculate mean average precision
+
+    Parameters:
+        pred_bboxes: predicted boxes
+        true_bboxes: true boxes
+        iou_threshold: iou threshold
+        num_classes: number of classes
+        box_format: center (x, y, w, h) or corners (x1, y1, x2, y2)
+    Return:
+        MAP score
+    """
+    average_precisions = []
+
+    epsilon = 1e-7
+
+    for c in range(num_classes):
+        detections = []
+        ground_truths = []
+
+        for detection in pred_bboxes:
+            if detection[1] == c:
+                detections.append(detection)
+
+        for true_box in true_bboxes:
+            if true_box[1] == c:
+                ground_truths.append(true_box)
+
+        amount_bboxes = Counter([gt[0] for gt in ground_truths])
+        for key, val in amount_bboxes.items():
+            amount_bboxes[key] = torch.zeros(val)
+
+        detections.sort(key=lambda x: x[2], reverse=True)
+        TP = torch.zeros((len(detections)))
+        FP = torch.zeros((len(detections)))
+        total_true_bboxes = len(ground_truths)
+
+        if total_true_bboxes == 0:
+            continue
+
+        for detection_idx, detection in enumerate(detections):
+            ground_truth_img = [
+                bbox for bbox in ground_truths if bbox[0] == detection[0]
+            ]
+
+            num_gts = len(ground_truth_img)
+            best_iou = 0
+
+            for idx, gt in enumerate(ground_truth_img):
+                iou = intersection_over_union(
+                    torch.tensor(detection[3:]),
+                    torch.tensor(gt[3:]),
+                    box_format=box_format,
+                )
+
+                if iou > best_iou:
+                    best_iou = iou
+                    best_gt_idx = idx
+
+            if best_iou > iou_threshold:
+                # only detect ground truth detection once
+                if amount_bboxes[detection[0]][best_gt_idx] == 0:
+                    TP[detection_idx] = 1
+                    amount_bboxes[detection[0]][best_gt_idx] = 1
+                else:
+                    FP[detection_idx] = 1
+            else:
+                FP[detection_idx] = 1
+
+        TP_cumsum = torch.cumsum(TP, dim=0)
+        FP_cumsum = torch.cumsum(FP, dim=0)
+        recalls = TP_cumsum / (total_true_bboxes + epsilon)
+        precisions = torch.divide(TP_cumsum, (TP_cumsum + FP_cumsum + epsilon))
+        precisions = torch.cat((torch.tensor([1]), precisions))
+        recalls = torch.cat((torch.tensor([0]), recalls))
+        average_precisions.append(torch.trapz(precisions, recalls))
+
+    return sum(average_precisions) / len(average_precisions)
 
 def get_symbol_size(csv_file: str, label_dir: str, image_size: int) -> int:
     """
@@ -112,10 +262,71 @@ def load_checkpoint(checkpoint_file, model, optimizer, lr):
         param_group["lr"] = lr
 
 def get_dataloaders():
-    pass
+
+    train_dataset = YOLSODataset(
+        csv_file=cfg.TRAIN_CSV_FILE,
+        img_dir=cfg.TRAIN_IMG_DIR,
+        label_dir=cfg.TRAIN_LABEL_DIR,
+        image_size=cfg.IMAGE_SIZE,
+        symbol_size=cfg.SYMBOL_SIZE,
+        padding_size = cfg.PADDING_SIZE,
+        num_classes = cfg.NUM_CLASSES,
+        transform=cfg.TRANSFORM,
+    )
+    val_dataset = YOLSODataset(
+        csv_file=cfg.VAL_CSV_FILE,
+        img_dir=cfg.VAL_IMG_DIR,
+        label_dir=cfg.VAL_LABEL_DIR,
+        image_size=cfg.IMAGE_SIZE,
+        symbol_size=cfg.SYMBOL_SIZE,
+        padding_size=cfg.PADDING_SIZE,
+        num_classes=cfg.NUM_CLASSES,
+        transform=cfg.TRANSFORM,
+    )
+    test_dataset = YOLSODataset(
+        csv_file=cfg.TEST_CSV_FILE,
+        img_dir=cfg.TEST_IMG_DIR,
+        label_dir=cfg.TEST_LABEL_DIR,
+        image_size=cfg.IMAGE_SIZE,
+        symbol_size=cfg.SYMBOL_SIZE,
+        padding_size=cfg.PADDING_SIZE,
+        num_classes=cfg.NUM_CLASSES,
+        transform=cfg.TRANSFORM,
+    )
+
+    train_loader = DataLoader(
+        train_dataset,
+        num_workers=cfg.NUM_WORKERS,
+        batch_size=cfg.BATCH_SIZE,
+        shuffle=True,
+        drop_last=True
+    )
+    val_loader = DataLoader(
+        val_dataset,
+        num_workers=cfg.NUM_WORKERS,
+        batch_size=cfg.BATCH_SIZE,
+        shuffle=True,
+        drop_last=True
+    )
+    test_loader = DataLoader(
+        test_dataset,
+        num_workers=cfg.NUM_WORKERS,
+        batch_size=cfg.BATCH_SIZE,
+        shuffle=True,
+        drop_last=True
+    )
+    return train_loader, val_loader, test_loader
 
 if __name__ == '__main__':
-    # assert get_paddings_size(model_configs['origin_config']) == 33, "error in origin config"
-    symbol_size = get_symbol_size("../test/train.csv", "../test/train/labels/", 256)
-    print(symbol_size)
-    print(256 * 0.062)
+    #assert get_paddings_size(cfg.model_configs['origin_config']) == 33, "error in origin config"
+    train_dataloader, val_dataloader, test_dataloader = get_dataloaders()
+    for batch_idx, (image, target) in enumerate(train_dataloader):
+        # Print the size of the first batch
+        print("Batch Index:", batch_idx)
+        print("image Shape:", image.shape)
+        print("Target Shape:", target.shape)
+
+        # Print the first data sample and target labels (assuming they are tensors)
+        print("First Data Sample:", image[0])
+        print("Target Labels:", target[0])
+        break
