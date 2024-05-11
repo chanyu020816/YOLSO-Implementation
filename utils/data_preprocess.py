@@ -18,27 +18,35 @@ def split_data(data_folder: str, train_size: float, val_size: float, test_size: 
     assert os.path.exists(image_folder), "Image folder does not exist"
     assert os.path.exists(label_folder), "Label folder does not exist"
 
-    train_size = int(train_size * len(image_folder)) if type(train_size) == float else train_size
-    val_size = int(val_size * len(image_folder)) if type(val_size) == float else val_size
-    test_size = int(test_size * len(image_folder)) if type(test_size) == float else test_size
+    image_files = [os.path.splitext(f)[0] for f in os.listdir(image_folder) if
+                   os.path.isfile(os.path.join(image_folder, f))]
+    label_files = [os.path.splitext(f)[0] for f in os.listdir(label_folder) if
+                   os.path.isfile(os.path.join(label_folder, f))]
 
-    image_files = [f for f in os.listdir(image_folder) if os.path.isfile(os.path.join(image_folder, f))]
-    label_files = [f for f in os.listdir(label_folder) if os.path.isfile(os.path.join(label_folder, f))]
+    # Find common filenames between image and label files
     common_files = set(image_files).intersection(label_files)
     common_files = list(common_files)
-    assert len(common_files) == train_size + val_size + test_size, "split size does not match data size"
     random.shuffle(common_files)
+    image_files = [f"{file}.jpg" for file in common_files]
+    label_files = [f"{file}.txt" for file in common_files]
+    files_len = len(common_files)
+    train_size = int(train_size * files_len) if type(train_size) == float else train_size
+    val_size = int(val_size * files_len) if type(val_size) == float else val_size
+    test_size = int(test_size * files_len) if type(test_size) == float else test_size
 
-    train_files = common_files[:train_size]
-    val_files = common_files[train_size:train_size + val_size]
-    test_files = common_files[train_size + val_size:]
+    train_images = image_files[:train_size]
+    val_images = image_files[train_size:train_size + val_size]
+    test_images = image_files[train_size + val_size:]
+    train_labels = label_files[:train_size]
+    val_labels = label_files[train_size:train_size + val_size]
+    test_labels = label_files[train_size + val_size:]
 
-    move_files(train_files, image_folder, os.path.join(data_folder, 'train', 'images'))
-    move_files(train_files, label_folder, os.path.join(data_folder, 'train', 'labels'))
-    move_files(val_files, image_folder, os.path.join(data_folder, 'val', 'images'))
-    move_files(val_files, label_folder, os.path.join(data_folder, 'val', 'labels'))
-    move_files(test_files, image_folder, os.path.join(data_folder, 'test', 'images'))
-    move_files(test_files, label_folder, os.path.join(data_folder, 'test', 'labels'))
+    move_files(train_images, image_folder, os.path.join(data_folder, 'train', 'images'))
+    move_files(train_labels, label_folder, os.path.join(data_folder, 'train', 'labels'))
+    move_files(val_images, image_folder, os.path.join(data_folder, 'val', 'images'))
+    move_files(val_labels, label_folder, os.path.join(data_folder, 'val', 'labels'))
+    move_files(test_images, image_folder, os.path.join(data_folder, 'test', 'images'))
+    move_files(test_labels, label_folder, os.path.join(data_folder, 'test', 'labels'))
 
     datadir2csv(os.path.join(data_folder, 'train'))
     datadir2csv(os.path.join(data_folder, 'val'))
@@ -53,7 +61,7 @@ def move_files(files, src, dest):
     """
     os.makedirs(dest, exist_ok=True)
     for file in files:
-        shutil.move(os.path.join(src, file), os.path.join(dest, file))
+        shutil.copy(os.path.join(src, file), os.path.join(dest, file))
 
 def datadir2csv(folder_path: str) -> None:
     """
@@ -67,6 +75,7 @@ def datadir2csv(folder_path: str) -> None:
     assert os.path.exists(label_folder), "Labels folder doesn't exist"
 
     image_files = os.listdir(image_folder)
+    print(len(image_files))
     # label_files = os.listdir(label_folder)
     folder_path_split = folder_path.split(os.path.sep)
     csv_name = folder_path_split[-1] if folder_path_split[-1] != '' else folder_path_split[-2]
@@ -81,3 +90,11 @@ def datadir2csv(folder_path: str) -> None:
             label_path = os.path.join(label_folder, label_file)
             if os.path.exists(label_path):
                 writer.writerow({'image': image_file, 'text': label_file})
+
+
+if __name__ == '__main__':
+    #folder_path = "../data/"
+    #split_data(folder_path, 0.75, 0.15, 0.10)\
+
+    datadir2csv("../data/aug_train")
+    datadir2csv("../data/aug_val")

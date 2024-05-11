@@ -11,9 +11,7 @@ def run_aug():
     aug_size = int(cfg.AUG_SIZE)
     transforms = cfg.TRANSFORMS
     os.makedirs(os.path.join(cfg.OUTPUT_PATH, 'images'), exist_ok=True)
-    print(os.path.join(cfg.OUTPUT_PATH, 'images'))
     os.makedirs(os.path.join(cfg.OUTPUT_PATH, 'labels'), exist_ok=True)
-
     for img_name in tqdm(images):
         base_name = os.path.splitext(img_name)[0]
         img_path = os.path.join(cfg.IMAGE_PATH, img_name)
