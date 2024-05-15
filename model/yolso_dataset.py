@@ -2,10 +2,9 @@ import os
 import numpy as np
 from pandas import read_csv
 from PIL import Image
+import cv2
 import torch
 from torch.utils.data import Dataset
-import utils
-import config
 
 class YOLSODataset(Dataset):
     def __init__(
@@ -15,14 +14,14 @@ class YOLSODataset(Dataset):
     ):
         """
 
-        :param csv_file:
-        :param img_dir:
-        :param label_dir:
-        :param image_size:
-        :param symbol_size:
-        :param padding_size:
-        :param num_classes:
-        :param transform:
+        :param csv_file: path to csv file which contains the image filename and label filename
+        :param img_dir: path to image directory
+        :param label_dir: path to label directory
+        :param image_size: image size
+        :param symbol_size: symbol size
+        :param padding_size: padding size
+        :param num_classes: number of classes
+        :param transform: transform to be applied on a sample
 
         """
         self.annotations = read_csv(csv_file)
@@ -96,7 +95,7 @@ class YOLSODataset(Dataset):
                 target[i, j, (self.num_classes + 1):(self.num_classes+3)] = box_coord
                 target[i, j, class_label] = 1
                 # e.g. target[i, j, ] = [0, 0, ..., 1, 0, ..., 1, 0.3, 0.7]
-        return image, target
+        return torch.tensor(np.array(image)).permute(2, 0, 1), target
 
     def _get_output_grid_size(self) -> int:
         """
@@ -115,9 +114,68 @@ class YOLSODataset(Dataset):
         right = self.image_size - self.padding_size
         return top, bot, left, right
 
-    def test(self):
-        img, lab = self.__getitem__(0)
+    def test(self, index):
+        img, lab = self.__getitem__(index)
+        lab_path = os.path.join(self.label_dir, self.annotations.iloc[index, 1])
+
+        self._vis_lab_loc(img, lab, lab_path)
+
+    def _vis_lab_loc(self, img, lab, lab_path):
+        img = img.cpu().numpy()
+        img = img.astype(np.uint8)  # Ensure the datatype is uint8
+        img = np.transpose(img, (1, 2, 0))  # Transpose to HWC format
+        img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+        ori_img = img.copy()
+        top, bot, left, right = self._get_exclude_position()
+        cv2.imwrite('../demo/ori_img.jpg', ori_img)
+        boxes = []
+        with open(lab_path) as f:
+            for label in f.readlines():
+                class_label, x, y, width, height = [
+                    float(x) if float(x) != int(float(x)) else int(x)
+                    for x in label.replace("\n", "").split()
+                ]
+                boxes.append([class_label, x, y, width, height])
+
+        for box in boxes:
+            class_label, x, y, width, height = box
+
+            cv2.rectangle(
+                ori_img,
+                (int((x-width / 2) * self.image_size), int((y-height / 2) * self.image_size)),
+                (int((x+width / 2) * self.image_size), int((y+height / 2) * self.image_size)),
+                (0, 0, 255), 1
+            )
+        cv2.rectangle(ori_img, (left, top), (right, bot), (0, 255, 255), 2)
+        cv2.imwrite('../demo/ori_lab_img.jpg', ori_img)
+
+
+        cv2.rectangle(img, (left, top), (right, bot), (0, 255, 255), 2)
+        for i in range(lab.shape[0]):
+            for j in range(lab.shape[1]):
+                anno = lab[i, j, ...]
+                # grid with annotation
+                if any(anno) != 0:
+                    class_id = (anno[0:self.num_classes] != 0).nonzero()[0].item()
+                    center = (
+                        int((anno[self.num_classes + 1]+ j) * self.image_size / self.output_grid_size + self.padding_size),
+                        int((anno[self.num_classes + 2]+ i) * self.image_size / self.output_grid_size + self.padding_size)
+                    )
+                    cv2.circle(img, center, 3, (0, 0, 255), -1)
+                    cv2.putText(
+                        img, f'{class_id}', (center[0] - 5, center[1] - 5),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1
+                    )
+        cv2.imwrite('../demo/train_lab_img.jpg', img)
 
 if __name__ == '__main__':
-    datasett = YOLSODataset("../test/train.csv", "../test/train/images", "../test/train/labels", 480, 16, 30, 30)
-    datasett.test()
+    datasett = YOLSODataset(
+        "../data/train.csv",
+        "../data/train/images",
+        "../data/train/labels",
+        480,
+        16,
+        33,
+        30
+    )
+    datasett.test(0)
