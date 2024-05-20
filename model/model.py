@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-import model.config
 
 
 class ConvBlock(nn.Module):
@@ -112,4 +111,13 @@ class YOLSOV1(nn.Module):
 
 
 if __name__ == '__main__':
-    pass
+    import config as cfg
+    model = YOLSOV1(
+        cfg.model_configs['origin_config'],
+        3, 25, 8
+    ).to(cfg.DEVICE)
+
+    x = torch.randn(10, 3, 480, 480).to(cfg.DEVICE)
+    print(x.shape)
+    y = model(x)
+    print(y.shape)

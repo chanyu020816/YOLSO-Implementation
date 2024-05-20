@@ -95,7 +95,7 @@ class YOLSODataset(Dataset):
                 target[i, j, (self.num_classes + 1):(self.num_classes+4)] = box_coord
                 target[i, j, class_label] = 1
                 # e.g. target[i, j, ] = [0, 0, ..., 1, 0, ..., 1, 0.3, 0.7, 1.5]
-        return torch.tensor(np.array(image)).permute(2, 0, 1), target
+        return torch.tensor(np.array(image)).permute(0, 1, 2), target
 
     def _get_output_grid_size(self) -> int:
         """
@@ -105,8 +105,7 @@ class YOLSODataset(Dataset):
 
     def _get_exclude_position(self):
         """
-
-        :return:
+        :return: top, bottom, left, right coordinates of excluded box
         """
         top = self.padding_size
         bot = self.image_size - self.padding_size
@@ -180,6 +179,6 @@ if __name__ == '__main__':
         480,
         16,
         33,
-        30
+        8
     )
     datasett.test(3)

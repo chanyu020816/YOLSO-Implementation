@@ -252,7 +252,7 @@ def save_checkpoint(model, optimizer, filename="my_checkpoint.pth.tar"):
 
 def load_checkpoint(checkpoint_file, model, optimizer, lr):
     print("=> Loading checkpoint")
-    checkpoint = torch.load(checkpoint_file, map_location=config.DEVICE)
+    checkpoint = torch.load(checkpoint_file, map_location=cfg.DEVICE)
     model.load_state_dict(checkpoint["state_dict"])
     optimizer.load_state_dict(checkpoint["optimizer"])
 
@@ -326,7 +326,4 @@ if __name__ == '__main__':
         print("image Shape:", image.shape)
         print("Target Shape:", target.shape)
 
-        # Print the first data sample and target labels (assuming they are tensors)
-        print("First Data Sample:", image[0])
-        print("Target Labels:", target[0])
         break
