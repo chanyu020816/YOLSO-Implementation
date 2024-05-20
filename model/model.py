@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-import config
+import model.config
 
 
 class ConvBlock(nn.Module):
@@ -90,19 +90,26 @@ class YOLSOV1(nn.Module):
                 pass
             elif module_type == 'MaxPool':
                 layers.append(nn.MaxPool2d(kernel_size=2, stride=2))
-            elif module_type == 'Prediction':
-                layers.extend([
-                    nn.Flatten(),
-                    nn.Linear(in_channels * self.split_size * self.split_size, 4096),
-                    nn.Dropout(0.0),
-                    nn.LeakyReLU(0.1),
-                    nn.Linear(4096, self.split_size * self.split_size * (self.num_classes + 3)),
-                ])
+            elif module_type == 'V1Prediction':
+                #layers.extend([
+                #    nn.Flatten(),
+                #    nn.Linear(in_channels * self.split_size * self.split_size, 4096),
+                #    nn.Dropout(0.0),
+                #    nn.LeakyReLU(0.1),
+                #    nn.Linear(4096, self.split_size * self.split_size * (self.num_classes + 3)),
+                #])
+                layers.append(
+                    ConvBlock(
+                        in_channels=in_channels,
+                        out_channels=(self.num_classes + 3),
+                        kernel_size=1,
+                        stride=1,
+                        padding=0,
+                        bn_act=False
+                    )
+                )
         return layers
 
 
 if __name__ == '__main__':
-    image = torch.randn(10, 3, 480, 480)
-    model = YOLSOV1(config.model_configs['origin_config'], 3, 25, 8)
-    output = model(image)
-    print(output.shape)
+    pass
