@@ -311,11 +311,30 @@ def get_dataloaders():
     test_loader = DataLoader(
         test_dataset,
         num_workers=cfg.NUM_WORKERS,
-        batch_size=cfg.BATCH_SIZE,
+        batch_size=1,
         shuffle=True,
         drop_last=True
     )
     return train_loader, val_loader, test_loader
+
+def viz_model(image, output):
+    image = image.cpu().numpy().astype(np.uint8)
+    print(image.shape)
+    output = output.cpu().numpy()
+    img = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+    ori_img = img.copy()
+    top, bot, left, right = get_exclude_position(image = cfg.IMAGE_SIZE, padding_size=cfg.PADDING_SIZE)
+    cv2.imwrite(f'../demo/ori_img.jpg', ori_img)
+
+def get_exclude_position(image_size, padding_size):
+    """
+    :return: top, bottom, left, right coordinates of excluded box
+    """
+    top = padding_size
+    bot = image_size - padding_size
+    left = padding_size
+    right = image_size - padding_size
+    return top, bot, left, right
 
 if __name__ == '__main__':
     #assert get_paddings_size(cfg.model_configs['origin_config']) == 33, "error in origin config"

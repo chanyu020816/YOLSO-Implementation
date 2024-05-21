@@ -100,7 +100,7 @@ class YOLSOV1(nn.Module):
                 layers.append(
                     ConvBlock(
                         in_channels=in_channels,
-                        out_channels=(self.num_classes + 3),
+                        out_channels=(self.num_classes + 4),
                         kernel_size=1,
                         stride=1,
                         padding=0,
@@ -118,6 +118,6 @@ if __name__ == '__main__':
     ).to(cfg.DEVICE)
 
     x = torch.randn(10, 3, 480, 480).to(cfg.DEVICE)
-    print(x.shape)
     y = model(x)
-    print(y.shape)
+    # torch.Size([10, 3, 480, 480])
+    # torch.Size([10, 12, 25, 25])
