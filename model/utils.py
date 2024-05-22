@@ -318,13 +318,16 @@ def get_dataloaders():
     return train_loader, val_loader, test_loader
 
 def viz_model(image, output):
-    image = image.cpu().numpy().astype(np.uint8)
-    print(image.shape)
+    image = image.cpu().numpy()
+    image = np.transpose(image, (1, 2, 0))
+    image_bgr = image[:, :, ::-1]
+    img = (image_bgr * 255).astype(np.uint8)
     output = output.cpu().numpy()
-    img = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+
     ori_img = img.copy()
-    top, bot, left, right = get_exclude_position(image = cfg.IMAGE_SIZE, padding_size=cfg.PADDING_SIZE)
-    cv2.imwrite(f'../demo/ori_img.jpg', ori_img)
+    # top, bot, left, right = get_exclude_position(image_size = cfg.IMAGE_SIZE, padding_size=cfg.PADDING_SIZE)
+    cv2.imwrite(f'./demo/test_ori_img.jpg', ori_img)
+    print(img.shape)
 
 def get_exclude_position(image_size, padding_size):
     """

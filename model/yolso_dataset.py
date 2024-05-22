@@ -131,7 +131,7 @@ class YOLSODataset(Dataset):
         img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
         ori_img = img.copy()
         top, bot, left, right = self._get_exclude_position()
-        cv2.imwrite(f'../demo/ori_img{index}.jpg', ori_img)
+        cv2.imwrite(f'../demo/test_ori_img{index}.jpg', ori_img)
         boxes = []
         with open(lab_path) as f:
             for label in f.readlines():
@@ -178,12 +178,12 @@ class YOLSODataset(Dataset):
 
 if __name__ == '__main__':
     datasett = YOLSODataset(
-        "../data/train.csv",
-        "../data/train/images",
-        "../data/train/labels",
+        "../data/test.csv",
+        "../data/test/images",
+        "../data/test/labels",
         480,
         16,
         33,
         8
     )
-    datasett.test(4)
+    datasett.test(5)

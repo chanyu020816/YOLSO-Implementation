@@ -45,16 +45,13 @@ def val(val_loader, model, loss_fn):
 
     return np.mean(total_losses), np.mean(coord_losses), np.mean(size_losses), np.mean(class_losses)
 
-def test(test_loader, model):
-    loop = test_loader
-    losses = []
-
-    for i, (image, label) in enumerate(loop):
+def plot_model(test_loader, model):
+    for i, (image, label) in enumerate(test_loader):
         image, label = image.to(cfg.DEVICE), label.to(cfg.DEVICE)
-        output = model(image)
-        print(image.shape, output.shape)
-        viz_model(image, output)
-
+        with torch.no_grad():
+            output = model(image)
+        print(image[0].shape, output[0].shape)
+        viz_model(image[0], output[0])
         break
 
 def save_checkpoint(model, optimizer, epoch, filename="checkpoint.pth.tar"):
@@ -98,8 +95,8 @@ def main():
 
         print(f'Epoch {epoch + 1:3d}/{cfg.EPOCHS} | Train Loss: {train_loss:.10f} | '
               f'Validation Total Loss: {val_loss:.5f}, Coord Loss: {val_coord_loss:.5f}, Size Loss: {val_size_loss:.5f}, Class Loss: {val_class_loss:.5f}')
-        if epoch % 5 == 0:
-            test(test_dataloader, model)
+        if epoch % 2 == 0:
+            plot_model(test_dataloader, model)
 
     del train_dataloader
     del val_dataloader
