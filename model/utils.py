@@ -312,22 +312,70 @@ def get_dataloaders():
         test_dataset,
         num_workers=cfg.NUM_WORKERS,
         batch_size=1,
-        shuffle=True,
+        shuffle=False,
         drop_last=True
     )
     return train_loader, val_loader, test_loader
 
-def viz_model(image, output):
-    image = image.cpu().numpy()
-    image = np.transpose(image, (1, 2, 0))
-    image_bgr = image[:, :, ::-1]
-    img = (image_bgr * 255).astype(np.uint8)
-    output = output.cpu().numpy()
+def reverse_normalize(image_input, mean, std):
+    mean = np.array(mean).reshape(1, 1, 3)
+    std = np.array(std).reshape(1, 1, 3)
+    return image_input * std + mean
 
+def viz_model(image_input, output, dir_path, epoch, index):
+    image_numpy = image_input.cpu().numpy()
+    image_numpy = np.transpose(image_numpy, (1, 2, 0))
+    image_numpy = reverse_normalize(image_numpy, cfg.IMAGE_MEAN, cfg.IMAGE_STD)
+    image_bgr = image_numpy[:, :, ::-1]
+    img = np.clip(image_bgr * 255, 0, 255).astype(np.uint8)
+    top, bot, left, right = get_exclude_position(image_size=cfg.IMAGE_SIZE, padding_size=cfg.PADDING_SIZE)
+    output = output.cpu()
     ori_img = img.copy()
-    # top, bot, left, right = get_exclude_position(image_size = cfg.IMAGE_SIZE, padding_size=cfg.PADDING_SIZE)
-    cv2.imwrite(f'./demo/test_ori_img.jpg', ori_img)
-    print(img.shape)
+    if epoch == 0:
+        cv2.imwrite(os.path.join(dir_path, f'origin_image{index}.jpg'), ori_img)
+        cv2.rectangle(ori_img, (left, top), (right, bot), (0, 255, 255), 2)
+        cv2.imwrite(os.path.join(dir_path, f'origin_padded_image{index}.jpg'), ori_img)
+        # del ori_img
+        return
+    else:
+        cv2.rectangle(ori_img, (left, top), (right, bot), (0, 255, 255), 2)
+
+    num_classes = cfg.NUM_CLASSES
+    image_size = cfg.IMAGE_SIZE
+    output_grid_size = output.shape[1]
+    padding_size = cfg.PADDING_SIZE
+    symbol_size = cfg.SYMBOL_SIZE
+    pred_classes = torch.argmax(output[:cfg.NUM_CLASSES+1, :, :], dim = 0)
+    count = 0
+    for i in range(output.shape[1]):
+        for j in range(output.shape[1]):
+            anno = output[..., i, j]
+            if any(anno[num_classes + 1:num_classes + 4] < 0) | any(anno[num_classes + 1:num_classes + 3] > 1):
+                continue
+            class_id = pred_classes[i, j].item()
+            if pred_classes[i, j] != 0: # not a background
+
+                center = (
+                    int((anno[num_classes + 1] + j) * image_size / output_grid_size + padding_size),
+                    int((anno[num_classes + 2] + i) * image_size / output_grid_size + padding_size)
+                )
+                size = anno[num_classes + 3] * symbol_size
+
+                box_tl = (int(center[0] - size / 2), int(center[1] - size / 2))
+                box_br = (int(center[0] + size / 2), int(center[1] + size / 2))
+                cv2.circle(ori_img, center, 3, (0, 0, 255), -1)
+                cv2.rectangle(ori_img, box_tl, box_br, (0, 255, 0), 1)
+                cv2.putText(
+                    ori_img, f'{class_id}', (center[0] - 5, center[1] - 5),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1
+                )
+                count += 1
+            else:
+                continue
+    image_name = f'test_vis_epoch{epoch}_image{index}_count{count}.jpg'
+    cv2.imwrite(os.path.join(dir_path, image_name), ori_img)
+
+    return
 
 def get_exclude_position(image_size, padding_size):
     """

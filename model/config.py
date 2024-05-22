@@ -43,8 +43,10 @@ VAL_CSV_FILE = os.path.join(DATASET, "val.csv")
 TEST_IMG_DIR = os.path.join(DATASET, "test", "images")
 TEST_LABEL_DIR = os.path.join(DATASET, "test", "labels")
 TEST_CSV_FILE = os.path.join(DATASET, "test.csv")
+OUTPUT_DIR = os.path.join('runs')
 TEST_INTERVAL = 1
-
+IMAGE_MEAN = [0.485, 0.456, 0.406]
+IMAGE_STD = [0.229, 0.224, 0.225]
 
 class CustomTransform:
     def __init__(self, transforms):
@@ -58,7 +60,7 @@ class CustomTransform:
 
 TRANSFORM = CustomTransform(Compose([
     ToTensor(),  # 将图像转换为张量，并且会自动将图像数据类型转换为 float32
-    Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # 标准化
+    Normalize(mean=IMAGE_MEAN, std=IMAGE_STD)  # 标准化
 ]))
 """
 [from, number, module, args]

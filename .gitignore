@@ -7,3 +7,4 @@ __pycache__
 *.csv
 labels.cache
 *.pt
+*.tar
