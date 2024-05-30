@@ -56,7 +56,9 @@ class YOLSODataset(Dataset):
         boxes = torch.tensor(boxes)
 
         if self.transform:
-            image, boxes = self.transform(image, boxes)
+            augmentations = self.transform(image=image, bboxes=boxes)
+            image = augmentations["image"]
+            boxes = augmentations["bboxes"]
 
         # convert boxes to required target format
         exc_top, exc_bottom, exc_left, exc_right = self._get_exclude_position()

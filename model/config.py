@@ -1,8 +1,10 @@
 from PIL import Image
+import cv2
 from torch import cuda
 from torch.backends import mps
 import torchvision.transforms as transforms
 from torchvision.transforms import Compose, ToTensor, Normalize
+import albumentations as A
 import os.path
 
 if cuda.is_available():
@@ -58,10 +60,23 @@ class CustomTransform:
         image = self.transforms(image)
         return image, boxes
 
-TRANSFORM = CustomTransform(Compose([
-    ToTensor(),  # 将图像转换为张量，并且会自动将图像数据类型转换为 float32
-    Normalize(mean=IMAGE_MEAN, std=IMAGE_STD)  # 标准化
-]))
+#TRANSFORM = CustomTransform(Compose([
+#    ToTensor(),  # 将图像转换为张量，并且会自动将图像数据类型转换为 float32
+#    Normalize(mean=IMAGE_MEAN, std=IMAGE_STD)  # 标准化
+#]))
+TRANSFORM = A.Compose(
+[
+        A.HorizontalFlip(p=0.5),
+        A.Blur(p=0.1),
+        A.CLAHE(p=0.1),
+        A.Posterize(p=0.1),
+        A.ToGray(p=0.1),
+        A.Normalize(mean=[0, 0, 0], std=[1, 1, 1], max_pixel_value=255,),
+        A.pytorch.ToTensorV2(),
+    ],
+    bbox_params=A.BboxParams(format="yolo", min_visibility=0.4, label_fields=[],),
+)
+
 """
 [from, number, module, args]
 Conv args: [filters, kernel_size, stride, padding]
