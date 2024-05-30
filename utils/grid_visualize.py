@@ -24,7 +24,7 @@ class GridVisualize:
         pred = self.model.predict(image_path)
         return pred
 
-    def plotpred(self, image_path: str):
+    def plo_pred(self, image_path: str):
         image = cv2.imread(image_path)
         pred = self.predict(image_path)
 
@@ -85,6 +85,6 @@ class GridVisualize:
         return cv2.addWeighted(overlay, alpha, image, 1 - alpha, 0, image)
 
 if __name__ == '__main__':
-    visualizer = GridVisualize("../train8/weights/best.pt", 25)
-    visualizer.plotpred("../data/images/JM20K_1904_025_h3_w2_h0_w0.jpg")
+    visualizer = GridVisualize("../train8/weights/best.pt", gird_size = 25)
+    visualizer.plot_pred("../data/images/JM20K_1904_025_h3_w2_h0_w0.jpg")
     visualizer.plot_gridpred("../data/images/JM20K_1904_025_h3_w2_h0_w0.jpg")
