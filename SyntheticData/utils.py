@@ -5,18 +5,19 @@ import random
 from tqdm import tqdm
 import albumentations as A
 
-flip = A.ReplayCompose([
+symbol_transform = A.Compose([
+    A.GaussianBlur(blur_limit=1, p=1),
+])
+
+grid_transform = A.ReplayCompose([
     A.HorizontalFlip(p=0.3),
-    A.VerticalFlip(p=0.3)
+    A.VerticalFlip(p=0.3),
+    A.GaussianBlur(blur_limit=1, p=0.3)
 ])
 
 transform = A.ReplayCompose([
     A.HorizontalFlip(p=0.3),
     A.VerticalFlip(p=0.3),
-    # A.RandomBrightnessContrast(p=0.3),
-    # A.RandomGamma(p=0.3),
-    # A.RGBShift(p=0.3),
-    A.GaussianBlur(p=0.3)
 ])
 
 def add_symbol2background(background, symbol, x_offset, y_offset):
@@ -57,24 +58,28 @@ def create_synthetic_bgfg(background, foreground, nums):
             for j in range(3):
                 index = random.randint(0, image_num - 1)
                 slice_background = background[index]
-                result = flip(image=slice_background)
-                slice_background = result['image']
-                replay = result['replay']
-                slice_foreground = foreground[index]
-                result = A.ReplayCompose.replay(replay, image=slice_foreground)
-                slice_foreground = result['image']
                 h, w = slice_background.shape[:2]
                 h_start = random.randint(0, h - 160)
                 w_start = random.randint(0, w - 160)
-                bg[i*160:(i+1)*160, j*160:(j+1)*160, :] = slice_background[h_start:h_start + 160, w_start:w_start + 160, :]
-                fg[i*160:(i+1)*160, j*160:(j+1)*160, :] = slice_foreground[h_start:h_start + 160, w_start:w_start + 160, :]
+                slice_background = slice_background[h_start:h_start + 160, w_start:w_start + 160, :]
+                result = grid_transform(image=slice_background)
+                slice_background_trans = result['image']
+                replay = result['replay']
+                slice_foreground = foreground[index][h_start:h_start + 160, w_start:w_start + 160, :]
+                result = A.ReplayCompose.replay(replay, image=slice_foreground)
+                slice_foreground_trans = result['image']
+
+                bg[i*160:(i+1)*160, j*160:(j+1)*160, :] = slice_background_trans
+                fg[i*160:(i+1)*160, j*160:(j+1)*160, :] = slice_foreground_trans
+                cv2.imwrite(f'./test/{n}{i}{j}bg_before.jpg', slice_background)
+                cv2.imwrite(f'./test/{n}{i}{j}bg_after.jpg', slice_background_trans)
         full_results = transform(image=bg)
         synthetic_background.append(full_results['image'])
-        cv2.imwrite(f'{n}bg.jpg', full_results['image'])
+        cv2.imwrite(f'./test/{n}bg.jpg', full_results['image'])
         full_replay = full_results['replay']
         full_results = A.ReplayCompose.replay(full_replay, image=fg)
         synthetic_foreground.append(full_results['image'])
-        cv2.imwrite(f'{n}fg.jpg', full_results['image'])
+        cv2.imwrite(f'./test/{n}fg.jpg', full_results['image'])
 
     return synthetic_background, synthetic_foreground
 
@@ -107,6 +112,7 @@ def get_symbols(folder_path):
     # symbols_shape = []
     for i in range(1, 9):
         image = cv2.imread(os.path.join(folder_path, f'L{i}.png'))
+        image = symbol_transform(image=image)['image']
         # h, w = image.shape[:2]
         symbols.append(image)
         # symbols_shape.append((h, w))
