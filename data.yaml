@@ -1,0 +1,15 @@
+path: Desktop/YOLSO-Implementation/data/
+train: aug_train/images
+val: aug_val/images
+test: test/images
+
+names: 
+  0: Class0
+  1: Class1
+  2: Class2
+  3: Class3
+  4: Class4
+  5: Class5
+  6: Class6
+  7: Class7
+  8: Class8

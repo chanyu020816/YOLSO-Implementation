@@ -12,7 +12,7 @@ symbol_transform = A.Compose([
 grid_transform = A.ReplayCompose([
     A.HorizontalFlip(p=0.3),
     A.VerticalFlip(p=0.3),
-    A.GaussianBlur(blur_limit=1, p=0.3)
+    A.GaussianBlur(p=0.3)
 ])
 
 transform = A.ReplayCompose([

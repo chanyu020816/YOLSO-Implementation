@@ -11,7 +11,7 @@ if __name__ == "__main__":
     parser.add_argument('--symbol_dir', '-fg', type=str, default='./symbol/')
     parser.add_argument('--output_dir', '-o', type=str, default='./synthetic_data/')
     parser.add_argument('--synthetic_nums', '-n', type=int, default=10, help='Number of synthetic images')
-    parser.add_argument('--synthetic_bg_nums', '-bgn', type=int, default=3, help='Number of synthetic background')
+    parser.add_argument('--synthetic_bg_nums', '-bgn', type=int, default=10, help='Number of synthetic background')
     args = parser.parse_args()
 
     background, foreground = utils.get_images("./background", "./foreground")
